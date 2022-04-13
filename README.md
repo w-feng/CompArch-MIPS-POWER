@@ -5,13 +5,24 @@ This repository contains curriculum materials for a computer architecture class 
 The structure of the repository is noted below.
 
 •	Lecture Slides
+
 •	Resources
+
   o	GEM5 for POWER
+  
   o	Microwatt for POWER
+  
   o	Forums
+  
     	GEM5
+    
     	Microwatt
+    
 o	Tutorials
+
     	GEM5
+    
     	Microwatt
+    
 •	Exercises
+
