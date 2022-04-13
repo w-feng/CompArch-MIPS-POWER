@@ -1,1 +1,1 @@
-# ComputerArchitecture
+# CompArch-MIPS-POWER
