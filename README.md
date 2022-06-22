@@ -8,7 +8,7 @@ The structure of the repository is noted below.
   
   o	Chapter 1: Introduction
   
-  o	Chapter 2: Memory 
+  o	Chapter 2: Memory Hierarchy
   
   o	Chapter 3: Instruction-Level Parallelism
   
