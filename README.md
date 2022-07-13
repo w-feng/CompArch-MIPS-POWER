@@ -6,33 +6,32 @@ The structure of the repository is noted below.
 
 •	Lecture Slides
   
-  o	Chapter 1: Introduction
+    o	Chapter 1: Introduction
   
-  o	Chapter 2: Memory Hierarchy
+    o	Chapter 2: Memory Hierarchy
   
-  o	Chapter 3: Instruction-Level Parallelism
+    o	Chapter 3: Instruction-Level Parallelism
   
-  o	Chapter 4: Data-Level Parallelism 
+    o	Chapter 4: Data-Level Parallelism 
   
-  o	Chapter 5: Thread-Level Parallelism
+    o	Chapter 5: Thread-Level Parallelism
 
 •	Resources
 
-  o	GEM5 for POWER
+    o	GEM5 for POWER
   
-  o	Microwatt for POWER
+    o	Microwatt for POWER
   
-  o	Forums
+    o	Forums
   
-    	GEM5
+      	GEM5
     
-    	Microwatt
+      	Microwatt
     
-o	Tutorials
+    o	Tutorials
 
-    	GEM5
+      	GEM5
     
-    	Microwatt
+      	Microwatt
     
 •	Exercises
-
