@@ -24,14 +24,18 @@ The structure of the repository is noted below.
   
     o	Forums
   
-      	GEM5
+      *	GEM5
     
-      	Microwatt
+      *	Microwatt
     
     o	Tutorials
 
-      	GEM5
+      *	GEM5
     
-      	Microwatt
+      *	Microwatt
     
 •	Exercises
+
+Link to other resouces:  https://drive.google.com/drive/folders/1T-pyd9pYG8Hl6lJxHZsKQTKRd2nOP5cZ
+
+Link to the Open Power Foundation compute Hubs where compute resources are available for classroom use:  https://openpowerfoundation.org/hub/
