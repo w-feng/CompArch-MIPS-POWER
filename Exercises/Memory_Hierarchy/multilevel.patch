@@ -1,0 +1,232 @@
+From c6965615b1fad9c3e60ef286ce8e980874a86dc9 Mon Sep 17 00:00:00 2001
+From: Atharva Gondhalekar <atharva1@hazelnut.rlogin>
+Date: Sat, 10 Feb 2024 15:05:46 -0500
+Subject: [PATCH] Patch for L3 and L4
+
+---
+ configs/common/CacheConfig.py | 44 ++++++++++++++++++++++++++++++++---
+ configs/common/Caches.py      | 17 ++++++++++++++
+ configs/common/Options.py     |  7 +++++-
+ src/cpu/BaseCPU.py            | 32 +++++++++++++++++++++++++
+ src/mem/XBar.py               | 18 ++++++++++++++
+ 5 files changed, 114 insertions(+), 4 deletions(-)
+
+diff --git a/configs/common/CacheConfig.py b/configs/common/CacheConfig.py
+index 4f21a43924..00015817b1 100644
+--- a/configs/common/CacheConfig.py
++++ b/configs/common/CacheConfig.py
+@@ -90,7 +90,7 @@ def config_cache(options, system):
+             print("O3_ARM_v7a_3 is unavailable. Did you compile the O3 model?")
+             sys.exit(1)
+ 
+-        dcache_class, icache_class, l2_cache_class, walk_cache_class = (
++        dcache_class, icache_class, l2_cache_class, l3_cache_class, walk_cache_class = (
+             core.O3_ARM_v7a_DCache,
+             core.O3_ARM_v7a_ICache,
+             core.O3_ARM_v7aL2,
+@@ -103,17 +103,19 @@ def config_cache(options, system):
+             print("HPI is unavailable.")
+             sys.exit(1)
+ 
+-        dcache_class, icache_class, l2_cache_class, walk_cache_class = (
++        dcache_class, icache_class, l2_cache_class, l3_cache_class, l4_cache_class, walk_cache_class = (
+             core.HPI_DCache,
+             core.HPI_ICache,
+             core.HPI_L2,
+             None,
+         )
+     else:
+-        dcache_class, icache_class, l2_cache_class, walk_cache_class = (
++        dcache_class, icache_class, l2_cache_class, l3_cache_class, l4_cache_class, walk_cache_class = (
+             L1_DCache,
+             L1_ICache,
+             L2Cache,
++            L3Cache, 
++            L4Cache,
+             None,
+         )
+ 
+@@ -138,6 +140,42 @@ def config_cache(options, system):
+         system.tol2bus = L2XBar(clk_domain=system.cpu_clk_domain)
+         system.l2.cpu_side = system.tol2bus.mem_side_ports
+         system.l2.mem_side = system.membus.cpu_side_ports
++        
++        #Adding L3 cache implementation below
++    if options.l2cache and options.l3cache:
++        system.l2 = l2_cache_class(clk_domain=system.cpu_clk_domain, size=options.l2_size, assoc=options.l2_assoc)
++
++        system.l3 = l3_cache_class(clk_domain=system.cpu_clk_domain, size=options.l3_size, assoc=options.l3_assoc)
++
++        system.tol2bus = L2XBar(clk_domain = system.cpu_clk_domain)
++        system.tol3bus = L3XBar(clk_domain = system.cpu_clk_domain)
++
++        system.l2.cpu_side = system.tol2bus.master
++        system.l2.mem_side = system.tol3bus.slave
++
++        system.l3.cpu_side = system.tol3bus.master
++        system.l3.mem_side = system.membus.slave
++
++    #Adding L4 cache implementation here
++    if options.l2cache and options.l3cache and options.l4cache:
++        system.l2 = l2_cache_class(clk_domain=system.cpu_clk_domain, size=options.l2_size, assoc=options.l2_assoc)
++
++        system.l3 = l3_cache_class(clk_domain=system.cpu_clk_domain, size=options.l3_size, assoc=options.l3.assoc)
++
++        system.l4 = l4_cache_class(clk_domain=system.cpu_clk_domain, size=options.l4_size, assoc=options.l4.assoc)
++
++        system.tol2bus = L2XBar(clk_domain = system.cpu_clk_domain)
++        system.tol3bus = L3XBar(clk_domain = system.cpu_clk_domain)
++        system.tol4bus = L4XBar(clk_domain = system.cpu_clk_domain)
++
++        system.l2.cpu_side = system.tol2bus.master
++        system.l2.mem_side = system.tol3bus.slave
++
++        system.l3.cpu_sude = system.tol3bus.master
++        system.l3.mem_side = system.membus.slave
++
++        system.l4.cpu_sude = system.tol4bus.master
++        system.l4.mem_side = system.membus.slavem
+ 
+     if options.memchecker:
+         system.memchecker = MemChecker()
+diff --git a/configs/common/Caches.py b/configs/common/Caches.py
+index fed9ac7d19..ee8d28453f 100644
+--- a/configs/common/Caches.py
++++ b/configs/common/Caches.py
+@@ -77,6 +77,23 @@ class L2Cache(Cache):
+     tgts_per_mshr = 12
+     write_buffers = 8
+ 
++class L3Cache(Cache):
++    assoc = 64
++    tag_latency = 32
++    data_latency = 32
++    response_latency = 32
++    mshrs = 32
++    tgts_per_mshr = 24
++    write_buffers = 16
++
++class L4Cache(Cache):
++    assoc = 64
++    tag_latency = 32
++    data_latency = 32
++    response_latency = 32
++    mshrs = 32
++    tgts_per_mshr = 24
++    write_buffers = 16
+ 
+ class IOCache(Cache):
+     assoc = 8
+diff --git a/configs/common/Options.py b/configs/common/Options.py
+index 97335f13b9..e7dd79d864 100644
+--- a/configs/common/Options.py
++++ b/configs/common/Options.py
+@@ -185,19 +185,24 @@ def addNoISAOptions(parser):
+     )
+     parser.add_argument("--caches", action="store_true")
+     parser.add_argument("--l2cache", action="store_true")
++    parser.add_argument("--l3cache", action="store_true")
++    parser.add_argument("--l4cache", action="store_true")
+     parser.add_argument("--num-dirs", type=int, default=1)
+     parser.add_argument("--num-l2caches", type=int, default=1)
+     parser.add_argument("--num-l3caches", type=int, default=1)
++    parser.add_argument("--num-l4caches", type=int, default=1)
+     parser.add_argument("--l1d_size", type=str, default="64kB")
+     parser.add_argument("--l1i_size", type=str, default="32kB")
+     parser.add_argument("--l2_size", type=str, default="2MB")
+     parser.add_argument("--l3_size", type=str, default="16MB")
++    parser.add_argument("--l4_size", type=str, default="48MB")
+     parser.add_argument("--l1d_assoc", type=int, default=2)
+     parser.add_argument("--l1i_assoc", type=int, default=2)
+     parser.add_argument("--l2_assoc", type=int, default=8)
+     parser.add_argument("--l3_assoc", type=int, default=16)
++    parser.add_argument("--l4_assoc", type=int, default=32)
+     parser.add_argument("--cacheline_size", type=int, default=64)
+-
++    
+     # Enable Ruby
+     parser.add_argument("--ruby", action="store_true")
+ 
+diff --git a/src/cpu/BaseCPU.py b/src/cpu/BaseCPU.py
+index 9ba60ef1b8..5ff3f456a1 100644
+--- a/src/cpu/BaseCPU.py
++++ b/src/cpu/BaseCPU.py
+@@ -49,6 +49,8 @@ from m5.objects.Platform import Platform
+ from m5.objects.ResetPort import ResetResponsePort
+ from m5.objects.SubSystem import SubSystem
+ from m5.objects.XBar import L2XBar
++from m5.objects.XBar import L3XBar
++from m5.objects.XBar import L4XBar
+ from m5.params import *
+ from m5.proxy import *
+ from m5.SimObject import *
+@@ -222,6 +224,36 @@ class BaseCPU(ClockedObject):
+         self.toL2Bus.mem_side_ports = self.l2cache.cpu_side
+         self._cached_ports = ["l2cache.mem_side"]
+ 
++
++    #Adding L3 cache implementation below 
++    def addThreeLevelCacheHierarchy(self, ic, dc, l2c, iwc = None, dwc = None, xbar=None):
++        self.addPrivateSplitL2Caches(ic, dc, iwc, dwc)
++        self.toL3Bus = L3XBar()
++        self.connectCachedPorts(self.toL3Bus)
++        self.l3cache = l3c
++        self.toL3Bus.master = self.l3cache.cpu_side
++        self._cached_ports = ['l3cache.mem_side']
++
++    #Adding 4 level cache heirarchy
++    def addFourLevelCacheHierarchy(self, ic, dc, l2c, l3c, l4c, iwc = None, dwc = None, xbar=None):
++        self.addPrivateSplitL1Caches(ic, dc, iwc, dwc)
++        self.toL2Bus = xbar if xbar else L4XBar()
++        self.connectCachedPorts(self.toL2Bus.cpu_side_ports)
++        self.l2cache = l2c
++        self.toL2Bus.mem_side_ports = self.l2cache.cpu_side
++        self._cached_ports = ['l2cache.mem_side']
++        self.toL3Bus = L3XBar()
++        self.connectCachedPorts(self.toL3Bus)
++        self.l3Cache = l3c
++        self.toL3Bus.master = self.l3cache.cpu_side
++        self._cached_ports = ['l3cache.mem_side']
++        self.toL4Bus = L4Xbar()
++        self.connectCachedPorts(self.toL4Bus)
++        self.l4cache = l4c
++        self.toL4Bus.master = self.l4cache.cpu_side
++        self._cached_ports = ['l4cache.mem_side']
++
++
+     def createThreads(self):
+         # If no ISAs have been created, assume that the user wants the
+         # default ISA.
+diff --git a/src/mem/XBar.py b/src/mem/XBar.py
+index 927d3bbe36..4a0db7a794 100644
+--- a/src/mem/XBar.py
++++ b/src/mem/XBar.py
+@@ -178,7 +178,25 @@ class L2XBar(CoherentXBar):
+     # to the first level of unified cache.
+     point_of_unification = True
+ 
++#Adding L3 cache implementation below
++class L3XBar(CoherentXBar):
++    #256-bit crossbar by default
++    width = 32
++    frontend_latency = 1
++    forward_latency = 0
++    response_latency = 1
++    snoop_response_latency = 1
++    snoop_filter = SnoopFilter(lookup_latency = 0)
+ 
++class L4XBar(CoherentXBar):
++    width = 32
++    frontend_latency = 1
++    forward_latency = 0
++    response_latency = 1
++    snoop_response_latency = 1
++    snoop_filter = SnoopFilter(lookup_latency = 0)
++    
++    
+ # One of the key coherent crossbar instances is the system
+ # interconnect, tying together the CPU clusters, GPUs, and any I/O
+ # coherent requestors, and DRAM controllers.
+-- 
+2.43.0
+
